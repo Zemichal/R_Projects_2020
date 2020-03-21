@@ -31,8 +31,6 @@ eb3 <- subset(eb2, ...3 == "Tanya McCagherty" | ...11 == "Tanya McCagherty" |
 eb4 <- eb3[ , colSums(is.na(eb3)) == 0]
 
 
-# scale_shape_manual(values = c(8,13,15)) GGPLOT:shape = eb4$...5, LABS:shape = "Performance",
-
 # facet_grid(eb4$...46 ~ eb4$...5, as.table = FALSE)
 
 eb4$...5 <- factor(eb4$...5, levels = c("Does Not Meet","Meets","Exceeds"))
@@ -125,13 +123,12 @@ ep2 <- ep2 +
 
 ep2
 
-ggsave(eb5, filename = "EpByLevels.png",  bg = "transparent", height = 11, width = 8)
  # eb6 <-delete_layers(eb5,"GeomLabelRepel") #removes labels
  
  # grid.arrange(eb5,eb6,ncol=1)
 
  
- ggsave(ep2, filename = "test.png",  bg = "transparent", height = 13, width = 13)
+ # ggsave(ep2, filename = "test.png",  bg = "transparent", height = 13, width = 13)
     
 # AP Vertical
 
