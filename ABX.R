@@ -549,41 +549,48 @@ eq2
 #Flipped Shapes
 
 fs <- ggplot(data = eb4,
-              mapping = aes(x=as.integer(eb4$...20),
-                            y=as.integer(0),
-                            shape=eb4$...5,
-                            color = as.integer(eb4$...20),
-                            group = eb4$...20)) +
+             mapping = aes(y=as.integer(eb4$...20),
+                           x=as.integer(...25),
+                           # shape=eb4$...5,
+                           # color = as.integer(eb4$...20),
+                           group = eb4$...20)) +
 
 
   geom_point(alpha = 1, size = 2) +
 
 
-  scale_color_gradient2(low = "red4", mid = "gold3",
-                        high = "green4",
-                        midpoint = 15) +
+  # scale_color_gradient2(low = "red", mid = "greenyellow",
+  #                       high = "green4",
+  #                       midpoint = 15) +
 
 
-  labs(x= "Enterprsing Potential", y= "", shape = "Performance", color = " ") +
+  labs(x= "Enterprsing Potential", y= "Comfort With Conflict", shape = "Performance", color = " ") +
 
 
-  geom_label_repel(box.padding = .25, point.padding = .25, aes(label=as.character(eb4$...3))) +
+  geom_label_repel(nudge_y = -0.5, aes(label=as.character(eb4$...3))) +
 
 
-  guides(shape = FALSE) +
 
   #Doc
-  scale_x_continuous(limits = c(-15,85), breaks = seq(from = -15, to = 85, by = 5)) +
-
+  scale_x_continuous(limits = c(-15,85), breaks = seq(from = -15, to = 85, by = 20)) +
+  scale_y_continuous(limits = c(-40,50), breaks = seq(from = -40, to = 50, by = 10)) +
+  # geom_rect(aes(xmin=Inf,xmax=Inf,ymin=5,ymax=25),alpha=0.1,fill="green")+
+  annotate("rect", xmin = c(-15,25), xmax = c(85,85),
+           ymin = c(5,-40), ymax = c(25,50),
+           alpha = 0.3, fill = "green4") +
+  # facet_grid(.~level,as.table = FALSE)+
+    guides(shape=FALSE)+
 
   theme( panel.background = element_rect(fill = "transparent"),
          plot.background = element_rect(fill = "transparent", color = NA),
          panel.grid.major = element_blank(),
          panel.grid.minor = element_blank(),
-         axis.text.y=element_blank(),
-         axis.ticks.y=element_blank(),
-         legend.position = "bottom",
+         # axis.text.y=element_blank(),
+         # axis.ticks.y=element_blank(),
+         legend.position = "none",
          legend.key.width = unit(5.95,"cm"),
          legend.text = element_blank())
 
-fs
+
+ggsave(fs, filename = "test3.jpg",  bg = "transparent", height = 11, width = 12)
+
