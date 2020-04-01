@@ -28,7 +28,8 @@ ui <- fluidPage(
                                                         "AO", "CWC", "EQ","NULL")),
     
     selectInput("fv", "Please Select Vertical Facet", choices =c("Level", "Performance","NULL"), selected = "NULL"),
-    selectInput("fh", "Please Select Horizontal Facet", choices =c("Level", "Performance","NULL"), selected = "NULL")))),
+    selectInput("fh", "Please Select Horizontal Facet", choices =c("Level", "Performance","NULL"), selected = "NULL")),
+    actionButton("button","Update Chart"))),
     
     column(3,wellPanel(
       numericInput("by","Please Select Break Points For Y Axis", 10,
@@ -56,14 +57,13 @@ ui <- fluidPage(
                     min = -100, max = 115, value = 115, width = 1000),
         downloadButton('downloadPlot1', 'Download Vertical Plot'),
         downloadButton('downloadPlot2', 'Download Horizontial Plot'),
-        actionButton("button","Update Chart"))))
+        )))
       
       
       
     )
     
-    
-    
+
     # Define server logic required to draw the plot
     
     server <- function(input, output, session) {
@@ -98,6 +98,7 @@ ui <- fluidPage(
       
       eb4$lvls <- as.character(eb4$level)
       
+      #These 4 functions hold the values from the data frame
       
       axis_x_input <- eventReactive(input$button,{
         switch(input$x,
@@ -117,6 +118,7 @@ ui <- fluidPage(
         switch(input$fv,
                "Performance" = as.character(eb4[,"perf"]),"Level" = as.character(eb4[,"lvls"]), "NULL" = " ")
       })
+      
       facet_h_input <- eventReactive(input$button,{
         switch(input$fh,
                "Performance" = as.character(eb4[,"perf"]),"Level" = as.character(eb4[,"lvls"]), "NULL" = " ")
@@ -156,10 +158,10 @@ ui <- fluidPage(
         ggplot(data = eb4) +
           
           
-          geom_point(mapping = aes(x=axis_x_input(), y=axis_y_input(),size =.5, color =axis_x_input())) +
+          geom_point(mapping = aes(x=axis_x_input(), y=axis_y_input(),size =.5, color =-axis_x_input())) +
           
-          scale_color_gradient2(low = input$l, mid = input$m, 
-                                high = input$h, midpoint = input$mp) +
+          scale_color_gradient2(low = input$h, mid = input$m, 
+                                high = input$l, midpoint = input$mp) +
           facet_grid(facet_h_input()~.) +
           labs(
             x= input$xl,                       
@@ -168,7 +170,7 @@ ui <- fluidPage(
           
           geom_label_repel(box.padding = .25, point.padding = .25, aes(x=axis_x_input(), y=axis_y_input(),label=as.character(...3))) +               
           guides(size = FALSE)+
-          scale_x_continuous(limits = input$scalexr,breaks = seq(from = input$scalex1, to = input$scalex2, by = input$byx)) +
+          scale_x_reverse(limits = input$scalexr,breaks = seq(from = input$scalex1, to = input$scalex2, by = input$byx)) +
           scale_y_continuous(limits = input$scaleyr,breaks = seq(from = input$scaley1, to = input$scaley2, by = input$by)) +
           theme( panel.background = element_rect(fill = "transparent"), # bg of the panel
                  plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
@@ -179,9 +181,9 @@ ui <- fluidPage(
                  legend.position = "bottom",
                  legend.key.width = unit(6.5,"cm"),
                  legend.text = element_blank())
-
         
       }
+      
       output$chartv <- renderPlot({
         print(plotOutput1())
       }) 
@@ -190,15 +192,14 @@ ui <- fluidPage(
         print(plotOutput2())
       }) 
 
-      
       output$downloadPlot1 <- downloadHandler(
         filename = "FileName.png",
         content = function(file) {
           png(file, width = 1000 , height = 700, bg = "transparent" )
           print(plotOutput1())
           dev.off()
-          
-        }) 
+        })
+      
       output$downloadPlot2 <- downloadHandler(
         filename = "FileName.png",
         content = function(file) {
