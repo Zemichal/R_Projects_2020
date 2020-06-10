@@ -1,0 +1,258 @@
+library(lubridate)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(readr)
+library(httr)
+library(rvest)
+library(shiny)
+library(ggplot2)
+library(tidyverse)
+library(expss)
+library(DT)
+library(rsconnect)
+
+options(scipen=999)
+
+# rm(list=ls())
+
+root = "https://raw.githubusercontent.com/"
+
+repo = "CSSEGISandData/COVID-19"
+
+folder = "/master/csse_covid_19_data/csse_covid_19_time_series/"
+
+url_data_folder = str_c(root, repo, folder, sep="")
+
+url_confirmed_file = str_c(
+  url_data_folder, "time_series_covid19_confirmed_global.csv", sep="")
+url_death_file = str_c(
+  url_data_folder, "time_series_covid19_deaths_global.csv", sep="")
+url_recovered_file = str_c(
+  url_data_folder, "time_series_covid19_recovered_global.csv", sep="")
+url_confirmed_US = str_c(
+  url_data_folder, "time_series_covid19_confirmed_US.csv", sep="")
+
+confirmed_df <- read_csv(url_confirmed_file)
+recovered_df <- read_csv(url_recovered_file)
+death_df <- read_csv(url_death_file)
+confirmed_us_df <- read_csv(url_confirmed_US)
+
+#US Confirmed
+confirmed_us_df <- confirmed_us_df %>% 
+  rename(Long = Long_)
+
+confirmed_us_df <- confirmed_us_df %>% 
+  gather(which(colnames(confirmed_us_df)=="1/22/20"):ncol(confirmed_us_df), 
+         key = "date", value = "confirmed")
+
+confirmed_us_df <- confirmed_us_df %>% 
+  group_by(Country_Region, Province_State, date) %>% 
+  summarise(Lat = mean(Lat), Long = mean(Long), 
+            confirmed = sum(confirmed))
+
+confirmed_us_df <- confirmed_us_df %>% 
+  mutate(date = mdy(date))
+
+
+confirmed_us_df <- confirmed_us_df %>% 
+  mutate(
+    weekday = weekdays(date), #a column for the weekday of the date
+    month = month(date), #a column for the month of the date
+    day = day(date) #a column for the month of the date
+  )
+
+#Confirmed
+confirmed_df1 <- confirmed_df %>% 
+  gather(which(colnames(confirmed_df)=="1/22/20"):ncol(confirmed_df), 
+         key = "date", value = "confirmed")
+
+
+confirmed_df1 <- confirmed_df1 %>% 
+  mutate(date = mdy(date))
+
+confirmed_df1 <- confirmed_df1 %>% 
+  mutate(
+    weekday = weekdays(date), #a column for the weekday of the date
+    month = month(date), #a column for the month of the date
+    day = day(date) #a column for the month of the date
+  )
+
+#Deaths
+death_df1 <- death_df %>% 
+  gather(which(colnames(death_df)=="1/22/20"):ncol(death_df), 
+         key = "date", value = "deaths")
+
+
+death_df1 <- death_df1 %>% 
+  mutate(date = mdy(date))
+
+death_df1 <- death_df1 %>% 
+  mutate(
+    weekday = weekdays(date), #a column for the weekday of the date
+    month = month(date), #a column for the month of the date
+    day = day(date) #a column for the month of the date
+  )
+
+#Recovered
+recovered_df1 <- recovered_df %>% 
+  gather(which(colnames(recovered_df)=="1/22/20"):ncol(recovered_df), 
+         key = "date", value = "recovered")
+
+recovered_df1 <- recovered_df1 %>% 
+  mutate(date = mdy(date))
+
+recovered_df1 <- recovered_df1 %>% 
+  mutate(
+    weekday = weekdays(date), #a column for the weekday of the date
+    month = month(date), #a column for the month of the date
+    day = day(date) #a column for the month of the date
+  )
+
+
+df = confirmed_df1 %>% 
+  left_join(death_df1) %>% 
+  left_join(recovered_df1) %>% 
+  rename(region = `Country/Region`,
+         sub_region = `Province/State`) %>% 
+  select(c(region, sub_region, Lat, Long, 
+           date, month, day, weekday, 
+           confirmed, recovered, deaths))
+df
+
+ui <- fluidPage(
+  titlePanel("COVID-19 Visualization"),
+  mainPanel(tabsetPanel(
+    tabPanel("Top 5 Countries for Deaths", plotOutput("chartD", width = "150%")),
+    tabPanel("Top 5 Regions for Confirmed Cases", plotOutput("chartC", width = "150%")),
+    tabPanel("COVID-19 Data Table", dataTableOutput("table1", width = "150%")),
+    tabPanel("Summary Output for Confirmed Cases", verbatimTextOutput("sumC")),
+    tabPanel("US States with 100+ Cases", dataTableOutput("table2", width = "150%")),
+    tabPanel("Daily Trend of Confirmed Cases in Georgia",plotOutput("chartG", width = "150%")))),
+  fluidRow(
+    selectizeInput("reg", "Select the Region(s)", choices = NULL, options = list(maxItems = 20, placeholder = NULL)),
+    dateInput("dat", "Select the Date", value = "2020-04-26"))
+)
+
+server <- function(input, output, session) {
+  
+  updateSelectizeInput(session, "reg", choices = df$region, server = TRUE)
+  
+  output$table1 <- renderDataTable({
+    
+    if (is.null(input$reg)) {
+      df_1 <- df %>%
+        filter(df$region %in% df$region & df$date == input$dat) %>%
+        select(region,sub_region,date,confirmed,recovered,deaths)}
+    
+    else {
+      df_1 <- df %>%
+        filter(df$region %in% input$reg & df$date == input$dat) %>%
+        select(region,sub_region,date,confirmed,recovered,deaths)}
+    
+  })
+  
+  
+  output$chartD <- renderPlot({
+    if (is.null(input$reg)) {
+      ddf <- df %>%
+        filter(df$region %in% df$region & df$date == input$dat) %>%
+        arrange(desc(deaths)) %>%
+        filter(row_number() <= 5)}
+    
+    else {
+      ddf <- df %>%
+        filter(df$region %in% input$reg & df$date == input$dat) }
+    
+    
+    ggplot(data = ddf) +
+      
+      geom_bar(mapping = aes(x=region, y=deaths, color = region, fill = region),stat ="identity")+
+      labs(
+        x= "Regions",                       
+        y= "Number of Deaths")+
+      theme( panel.background = element_rect(fill = "transparent"),
+             plot.background = element_rect(fill = "transparent", color = NA),
+             panel.grid.major = element_blank(), 
+             panel.grid.minor = element_blank()) 
+  }) 
+  
+  output$chartC <- renderPlot({
+    if (is.null(input$reg)) {
+      cdf <- df %>%
+        filter(df$region %in% df$region & df$date == input$dat) %>%
+        arrange(desc(confirmed)) %>%
+        filter(row_number() <= 5)}
+    
+    else {
+      cdf <- df %>%
+        filter(df$region %in% input$reg & df$date == input$dat) }
+    
+    ggplot(data = cdf) +
+      
+      geom_bar(mapping = aes(x=region, y=confirmed, color = region, fill = region),stat ="identity")+
+      labs(
+        x= "Regions",                       
+        y= "Number of Confirmed Cases")+
+      theme( panel.background = element_rect(fill = "transparent"),
+             plot.background = element_rect(fill = "transparent", color = NA),
+             panel.grid.major = element_blank(), 
+             panel.grid.minor = element_blank()) 
+  }) 
+  
+  output$sumC <- renderText({
+    
+    
+    if (is.null(input$reg)) {
+      
+      df_4 <- df %>%
+        filter(df$date == input$dat) %>%
+        select(region,date,confirmed,recovered,deaths)}
+    
+    
+    else {
+      df_4 <- df %>%
+        filter(df$region %in% input$reg & df$date == input$dat) %>%
+        select(region,date,confirmed,recovered,deaths)}
+    
+    x <- "This is the sum of confirmed cases: "
+    
+    y <- "\nThis is the sum of recovered cases: "
+    
+    z <- "\nThis is the sum of deaths: " 
+    
+    str_c(x,sum(df_4$confirmed),y,sum(df_4$recovered, na.rm = TRUE),z,sum(df_4$deaths))
+    
+  })
+  
+  output$table2 <- renderDataTable({
+    
+    us_df <- confirmed_us_df %>%
+      filter(confirmed > 100) %>%
+      filter(date == input$dat) %>%
+      select(Province_State, date, confirmed)%>%
+      group_by(Province_State)
+    
+  })
+  
+  output$chartG <- renderPlot({
+     
+    ga_df <- confirmed_us_df %>%
+      filter(Province_State == "Georgia" & month == 3)
+    
+    ggplot(ga_df) +
+      geom_point(mapping = aes(x=date, y=confirmed))+
+      labs(
+        x= "Timeline",                       
+        y= "Number of Confirmed Cases")+
+      theme( panel.background = element_rect(fill = "transparent"),
+             plot.background = element_rect(fill = "transparent", color = NA),
+             panel.grid.major = element_blank(), 
+             panel.grid.minor = element_blank())
+ 
+  })
+  
+  
+}
+
+shinyApp(ui = ui, server = server)
