@@ -221,7 +221,7 @@ server <- function(input, output, session) {
     
     z <- "\nThis is the sum of deaths: " 
     
-    str_c(x,sum(df_4$confirmed),y,sum(df_4$recovered, na.rm = TRUE),z,sum(df_4$deaths))
+    str_c(x,sum(df_4$confirmed, na.rm = TRUE),y,sum(df_4$recovered, na.rm = TRUE),z,sum(df_4$deaths, na.rm = TRUE))
     
   })
   
