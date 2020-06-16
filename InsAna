@@ -7,6 +7,8 @@ library(cowplot)
 library(ggrepel)
 library(ggridges)
 library(ggcorrplot)
+library(sjPlot)
+
 
 # rm(list=ls())
 
@@ -14,9 +16,12 @@ df <- read_excel("pd1.xlsx", sheet = "Sheet1")
 
 
 df1 <- df %>%
-  group_by(cancelledReason,NewRenew) %>%
-  summarise(count = n())
+  group_by(endorsementDescription,cancelledReason,NewRenew) %>%
+  summarise(count = n()) %>%
+  arrange(cancelledReason, desc(NewRenew), by_group = T) %>%
+  filter(count > 100)
 
+df1$endorsementDescription <- as.factor(df1$endorsementDescription)
 df1$cancelledReason <- as.factor(df1$cancelledReason)
 df1$NewRenew <- as.factor(df1$NewRenew)
 
@@ -26,10 +31,31 @@ ggplot(df1, aes(x = cancelledReason, y = count)) +
   geom_bar(aes(color = NewRenew, fill = NewRenew), position = position_dodge(), 
            stat = "identity") +
   
-  # geom_text(aes(label = count, group = NewRenew), position = position_dodge(.8), 
+  
+  # geom_text(aes(y = labpos, group = NewRenew, label = count), color = "white") +
+  
+  # geom_text(aes(label = count, group = NewRenew), position = position_dodge(.8),
   #           vjust = -.3, size = 2.85,color = "black") +
   
-  theme(axis.text.x = element_text(angle = 90))
+  
+  
+  theme_pubclean()
+
+
+ggplot(df1, aes(x = endorsementDescription, y = count)) + 
+  
+  geom_bar(aes(fill = cancelledReason), position = position_stack(), 
+           stat = "identity") +
+  
+  theme(axis.text.x = element_text(angle = 90)) +
+  
+  fill_palette("jco")
+
+
+## The vast majority of cancellations are due to nonpayment and of those the 
+## endorsment of removing a recurring credit card has the highest amount of cancellations
+
+## Plot time-series data using days to cancel after endors!!!!!!!
 
 
 df2 <- df %>%
@@ -39,7 +65,7 @@ df2 <- df %>%
   mutate(pro = round(count*100/sum(count),2),
          labPos = cumsum(pro) - .5*pro) %>%
   filter(pro > .5)
-  
+
 #-----------------------------------------------
 # Pie Chart
 # Note: ggpie in ggpubr can also be used for this
@@ -58,8 +84,82 @@ ggplot(df2, aes(x = "", y = pro, fill = cancelledReason)) +
   
   theme_void()
 
+
+
+
 # Tie back the most common endorsements and the avg time between eff endor and cancellation to
 # Non-payment and Insured Request
+# changeType: 2,4
+# The change in preium based on endor and cancel reason and days to cancel after endors
+
 # Intersting stackoverflow could be useful
 ## https://stackoverflow.com/questions/31238284/correlation-matrix-of-a-bunch-of-categorical-variables-in-r/31240202
 
+# Box Plot using  cancel reason and premium change as vars
+
+ggplot(df3) +
+  
+  geom_boxplot(aes(x = cancelledReason, y = PremiumChange, fill = cancelledReason)) +
+  
+  theme_pubclean()
+
+
+# Density Plot
+
+df3 <- df %>%
+  select(endorsementDescription,cancelledReason,
+           NewRenew,DaysToCancelAferEndorsed, PremiumChange)
+
+df3$endorsementDescription <- as.factor(df3$endorsementDescription)
+df3$cancelledReason <- as.factor(df3$cancelledReason)
+df3$NewRenew <- as.factor(df3$NewRenew)
+
+
+df3 <- subset(df3,cancelledReason == "Insured Request" | cancelledReason == "Finance Company Request" | 
+                cancelledReason == "Non Payment" | cancelledReason == "NSF Check" | cancelledReason == "Underwriting")
+# df3 <- df3 %>% 
+#   filter(cancelledReason == "Insured Request", "Finance Company Request", "Non Payment", "NSF Check", "Underwriting")
+
+## Correlation Plot could be useful for this or a plot using plot_model!!!!!
+##
+## Scatterplot 
+  
+ ggplot(df3) +
+   
+   geom_point(aes(x = DaysToCancelAferEndorsed, y = PremiumChange, color = cancelledReason)) +
+   
+   facet_grid(cancelledReason~.) +
+   
+   theme(strip.text.y = element_text(size = 7),
+         panel.grid = element_line("black"),
+         panel.background = element_rect(fill = "transparent")) +
+   
+   scale_x_continuous(breaks = seq(from = 0, to = 375, by = 25)) 
+   # scale_x_continuous(breaks = seq(from = -6000, to = 15000, by = 2500))
+
+## May have to do this with ggplot so I can have more control over the plot
+ ## Needs a bit more work on this df
+ # df4 <- df %>%
+ #   group_by(endorsementDescription,cancelledReason,
+ #          NewRenew,DaysToCancelAferEndorsed, PremiumChange) %>%
+ # summarise(count = n())
+ # 
+ggdensity(df3, x = "DaysToCancelAferEndorsed", add = "mean", 
+          color = "cancelledReason", 
+          fill = "cancelledReason", rug = TRUE)
+
+
+
+
+# Correlation Plot
+## sjPlot could be useful for vis ML models
+
+# df1[] <- lapply(df1, as.integer)
+# sjp.corr(df1)
+# plot_model(df1)
+# df3 <- select(df, endorsementDescription, cancelledReason, DaysToCancelAferEndorsed, PremiumChange)
+# df3 <- group_by(df3,endorsementDescription) %>%
+#   summarise(count = n())
+# Transform change in premium and days to cancel after endo into exp 
+# Transform the categorical data into factors
+# Check email for links
