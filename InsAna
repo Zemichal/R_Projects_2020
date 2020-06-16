@@ -60,4 +60,6 @@ ggplot(df2, aes(x = "", y = pro, fill = cancelledReason)) +
 
 # Tie back the most common endorsements and the avg time between eff endor and cancellation to
 # Non-payment and Insured Request
+# Intersting stackoverflow could be useful
+## https://stackoverflow.com/questions/31238284/correlation-matrix-of-a-bunch-of-categorical-variables-in-r/31240202
 
