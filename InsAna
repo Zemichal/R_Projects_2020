@@ -1,0 +1,63 @@
+library(ggplot2)
+library(dplyr)
+library(readxl)
+library(readr)
+library(ggpubr)
+library(cowplot)
+library(ggrepel)
+library(ggridges)
+library(ggcorrplot)
+
+# rm(list=ls())
+
+df <- read_excel("pd1.xlsx", sheet = "Sheet1")
+
+
+df1 <- df %>%
+  group_by(cancelledReason,NewRenew) %>%
+  summarise(count = n())
+
+df1$cancelledReason <- as.factor(df1$cancelledReason)
+df1$NewRenew <- as.factor(df1$NewRenew)
+
+
+ggplot(df1, aes(x = cancelledReason, y = count)) + 
+  
+  geom_bar(aes(color = NewRenew, fill = NewRenew), position = position_dodge(), 
+           stat = "identity") +
+  
+  # geom_text(aes(label = count, group = NewRenew), position = position_dodge(.8), 
+  #           vjust = -.3, size = 2.85,color = "black") +
+  
+  theme(axis.text.x = element_text(angle = 90))
+
+
+df2 <- df %>%
+  group_by(cancelledReason) %>%
+  summarise(count = n()) %>%
+  arrange(desc(cancelledReason)) %>%
+  mutate(pro = round(count*100/sum(count),2),
+         labPos = cumsum(pro) - .5*pro) %>%
+  filter(pro > .5)
+  
+#-----------------------------------------------
+# Pie Chart
+# Note: ggpie in ggpubr can also be used for this
+
+ggplot(df2, aes(x = "", y = pro, fill = cancelledReason)) +
+  
+  geom_bar(stat = "identity", color = "black", width = 1) + 
+  
+  # geom_text_repel(aes(y = labPos, label = pro), color = "black") +
+  
+  geom_text(aes(y = labPos, label = pro), color = "black") +
+  
+  coord_polar("y", start = 0) +
+  
+  fill_palette("aaas") +
+  
+  theme_void()
+
+# Tie back the most common endorsements and the avg time between eff endor and cancellation to
+# Non-payment and Insured Request
+
