@@ -8,158 +8,484 @@ library(ggrepel)
 library(ggridges)
 library(ggcorrplot)
 library(sjPlot)
+library(RColorBrewer)
+library(tidyr)
+library(plotly)
 
 
+# dev.new()
+# dev.off()
 # rm(list=ls())
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
 
 df <- read_excel("pd1.xlsx", sheet = "Sheet1")
+df <- data.frame(df)
 
+# Grouped the most frequent occurrences of credit card removals by days to cancel 
 
 df1 <- df %>%
-  group_by(endorsementDescription,cancelledReason,NewRenew) %>%
+  group_by(ProducerCode, ProducerName,endorsementDescription,
+           cancelledReason, NewRenew, DaysToCancelAferEndorsed,
+           DaysEffectiveToEndorsement) %>%
   summarise(count = n()) %>%
-  arrange(cancelledReason, desc(NewRenew), by_group = T) %>%
-  filter(count > 100)
+  filter(count > 10) %>%
+  filter(endorsementDescription == "Remove Recurring Credit Card") %>%
+  arrange(desc(ProducerCode))
 
-df1$endorsementDescription <- as.factor(df1$endorsementDescription)
-df1$cancelledReason <- as.factor(df1$cancelledReason)
-df1$NewRenew <- as.factor(df1$NewRenew)
-
-
-ggplot(df1, aes(x = cancelledReason, y = count)) + 
-  
-  geom_bar(aes(color = NewRenew, fill = NewRenew), position = position_dodge(), 
-           stat = "identity") +
-  
-  
-  # geom_text(aes(y = labpos, group = NewRenew, label = count), color = "white") +
-  
-  # geom_text(aes(label = count, group = NewRenew), position = position_dodge(.8),
-  #           vjust = -.3, size = 2.85,color = "black") +
-  
-  
-  
-  theme_pubclean()
+df1$DaysToCancelAferEndorsed <- as.factor(df1$DaysToCancelAferEndorsed)
 
 
-ggplot(df1, aes(x = endorsementDescription, y = count)) + 
+ggplot(df1, aes(fill = DaysToCancelAferEndorsed)) + 
   
-  geom_bar(aes(fill = cancelledReason), position = position_stack(), 
-           stat = "identity") +
+  geom_bar(aes(x = DaysToCancelAferEndorsed, y = count), stat = "identity") +
   
-  theme(axis.text.x = element_text(angle = 90)) +
+  theme(legend.position = "top",
+        panel.background = element_rect(fill = "transparent")) +
   
-  fill_palette("jco")
+  labs(title = "Removal Count Of Recurring Credit Cards")
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
 
+# removing eft
 
-## The vast majority of cancellations are due to nonpayment and of those the 
-## endorsment of removing a recurring credit card has the highest amount of cancellations
+# the endors tied to payments
 
-## Plot time-series data using days to cancel after endors!!!!!!!
-
+# Grouped the most frequent occurrences of EFTs removals by days to cancel 
 
 df2 <- df %>%
-  group_by(cancelledReason) %>%
+  group_by(ProducerCode, ProducerName,endorsementDescription,
+           cancelledReason, NewRenew, DaysToCancelAferEndorsed,
+           DaysEffectiveToEndorsement) %>%
   summarise(count = n()) %>%
-  arrange(desc(cancelledReason)) %>%
-  mutate(pro = round(count*100/sum(count),2),
-         labPos = cumsum(pro) - .5*pro) %>%
-  filter(pro > .5)
+  filter(count >= 5) %>%
+  filter(endorsementDescription == "Delete Recurring EFT") %>%
+  arrange(desc(ProducerCode))
 
-#-----------------------------------------------
-# Pie Chart
-# Note: ggpie in ggpubr can also be used for this
+df2$DaysToCancelAferEndorsed <- as.factor(df2$DaysToCancelAferEndorsed)
 
-ggplot(df2, aes(x = "", y = pro, fill = cancelledReason)) +
+ggplot(df2, aes(fill = DaysToCancelAferEndorsed)) + 
+  
+  geom_bar(aes(x = DaysToCancelAferEndorsed, y = count), stat = "identity") +
+  
+  theme(legend.position = "top",
+        panel.background = element_rect(fill = "transparent")) +
+  
+  labs(title = "Removal Count Of EFT")
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+
+# Grouped the most frequent occurrences of credit card removals by producer
+# Since we now know the majority is occurring within 11 days 
+
+df3 <- df %>%
+  group_by(ProducerName,endorsementDescription) %>%
+  summarise(count = n()) %>%
+  # filter(count > 500) %>%
+  filter(endorsementDescription == "Remove Recurring Credit Card") %>%
+  arrange(desc(ProducerName))
+
+df3$Total <- sum(df3$count)
+df3$TotalP <- (df3$count/df3$Total)*100
+
+
+colourCount = length(unique(df3$ProducerName))
+getPalette = colorRampPalette(brewer.pal(9, "Set1"))
+
+#  Zebra is 8.7% of the total number of cc removals
+#  Pie Chart to visualize the top producers in term of cc removals
+
+df3 <- df3 %>%
+  select(ProducerName,endorsementDescription,count,TotalP) %>%
+  filter(TotalP > 1)
+
+ggplot(df3, aes(x = "", y = TotalP, fill = ProducerName)) +
   
   geom_bar(stat = "identity", color = "black", width = 1) + 
   
-  # geom_text_repel(aes(y = labPos, label = pro), color = "black") +
+  coord_polar("y", start = 0) +
   
-  geom_text(aes(y = labPos, label = pro), color = "black") +
+  theme_void() +
+  
+  scale_fill_manual(values = getPalette(colourCount)) +
+  
+  guides(fill=guide_legend(ncol=1)) +
+  
+  labs(title = "CC Removals")
+
+
+ggplot(df3) + 
+  
+  geom_bar(aes(x = ProducerName, y = count, fill = ProducerName), position = position_stack(),stat = "identity") +
+  
+  theme(legend.position = "top",
+        panel.background = element_rect(fill = "transparent"),
+        axis.text.x = element_text(angle = 90)) +
+  
+  labs(title = "Removal Count Of Recurring Credit Cards") +
+  
+  scale_fill_manual(values = getPalette(colourCount)) 
+  
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+
+# Lets breakdown which states have the highest amount of cc removals for zebra
+
+df4 <- df %>% 
+  group_by(ProducerName,ProducerCode, endorsementDescription) %>%
+  summarise(count = n()) %>%
+  filter(ProducerName == "THE ZEBRA") %>%
+  filter(endorsementDescription == "Remove Recurring Credit Card")
+
+df4$Total <- sum(df4$count)
+df4$TotalP <- (df4$count/df4$Total)*100
+
+# FL6770, GA6771, TX6767 have the highest percentages (AL6768 & MO6773 were somewhat as well) 
+
+ggplot(df4, aes(fill = ProducerCode)) + 
+  
+  geom_bar(aes(x = ProducerCode, y = count), stat = "identity") +
+  
+  theme(legend.position = "top",
+        panel.background = element_rect(fill = "transparent")) +
+  
+  labs( title = "The Zebra",
+        x = "Producer Codes",
+        y = "Count of CC removals") +
+  
+  fill_palette("jco")
+  
+
+colourCount1 = length(unique(df4$ProducerCode))
+getPalette1 = colorRampPalette(brewer.pal(9, "Set1"))
+
+
+# Pie Chart Regarding Zebra CC removals
+
+ggplot(df4, aes(x = "", y = TotalP, fill = ProducerCode)) +
+  
+  geom_bar(stat = "identity", color = "black", width = 1) + 
   
   coord_polar("y", start = 0) +
   
-  fill_palette("aaas") +
+  theme_void() +
   
-  theme_void()
-
-
-
-
-# Tie back the most common endorsements and the avg time between eff endor and cancellation to
-# Non-payment and Insured Request
-# changeType: 2,4
-# The change in preium based on endor and cancel reason and days to cancel after endors
-
-# Intersting stackoverflow could be useful
-## https://stackoverflow.com/questions/31238284/correlation-matrix-of-a-bunch-of-categorical-variables-in-r/31240202
-
-# Box Plot using  cancel reason and premium change as vars
-
-ggplot(df3) +
+  scale_fill_manual(values = getPalette1(colourCount1)) +
   
-  geom_boxplot(aes(x = cancelledReason, y = PremiumChange, fill = cancelledReason)) +
+  guides(fill=guide_legend(ncol=1)) +
   
-  theme_pubclean()
+  labs(title = "CC Removals by Producer For The Zebta")
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
 
+# Are these 3 producers from Zebra also removing these endos within the 11 day cancel window?
 
-# Density Plot
+df5 <- df %>% 
+  group_by(ProducerName,ProducerCode, endorsementDescription, DaysToCancelAferEndorsed) %>%
+  summarise(count = n()) %>%
+  filter(ProducerName == "THE ZEBRA") %>%
+  filter(endorsementDescription == "Remove Recurring Credit Card") %>% 
+  filter(count > 15)
 
-df3 <- df %>%
-  select(endorsementDescription,cancelledReason,
-           NewRenew,DaysToCancelAferEndorsed, PremiumChange)
+df5$Total <- sum(df5$count)
+df5$TotalP <- (df5$count/df5$Total)*100
 
-df3$endorsementDescription <- as.factor(df3$endorsementDescription)
-df3$cancelledReason <- as.factor(df3$cancelledReason)
-df3$NewRenew <- as.factor(df3$NewRenew)
+# Run the Total & TotalP before making the count factors
 
+df5$DaysToCancelAferEndorsed <- as.factor(df5$DaysToCancelAferEndorsed)
 
-df3 <- subset(df3,cancelledReason == "Insured Request" | cancelledReason == "Finance Company Request" | 
-                cancelledReason == "Non Payment" | cancelledReason == "NSF Check" | cancelledReason == "Underwriting")
-# df3 <- df3 %>% 
-#   filter(cancelledReason == "Insured Request", "Finance Company Request", "Non Payment", "NSF Check", "Underwriting")
-
-## Correlation Plot could be useful for this or a plot using plot_model!!!!!
-##
-## Scatterplot 
+ggplot(df5) +
   
- ggplot(df3) +
-   
-   geom_point(aes(x = DaysToCancelAferEndorsed, y = PremiumChange, color = cancelledReason)) +
-   
-   facet_grid(cancelledReason~.) +
-   
-   theme(strip.text.y = element_text(size = 7),
-         panel.grid = element_line("black"),
-         panel.background = element_rect(fill = "transparent")) +
-   
-   scale_x_continuous(breaks = seq(from = 0, to = 375, by = 25)) 
-   # scale_x_continuous(breaks = seq(from = -6000, to = 15000, by = 2500))
+  geom_bar(aes(x = ProducerCode, y = count, fill = DaysToCancelAferEndorsed), stat = "identity", 
+           position = position_stack()) +
+  
+  theme(legend.position = "top",
+        panel.background = element_rect(fill = "transparent")) +
+  
+  labs( title = "The Zebra",
+        x = "Producer Codes",
+        y = "Count of CC removals")
 
-## May have to do this with ggplot so I can have more control over the plot
- ## Needs a bit more work on this df
- # df4 <- df %>%
- #   group_by(endorsementDescription,cancelledReason,
- #          NewRenew,DaysToCancelAferEndorsed, PremiumChange) %>%
- # summarise(count = n())
- # 
-ggdensity(df3, x = "DaysToCancelAferEndorsed", add = "mean", 
-          color = "cancelledReason", 
-          fill = "cancelledReason", rug = TRUE)
+# Separate these by who committed the endorsements
+# The highest counts of removals were done by the system, what does this mean? 
+# Ask about this
+df5 <- df %>% 
+  group_by(ProducerName,ProducerCode, endorsementDescription, 
+           DaysToCancelAferEndorsed, EndorsedBy) %>%
+  summarise(count = n()) %>%
+  filter(ProducerName == "THE ZEBRA") %>%
+  filter(ProducerCode == "FL6770" | ProducerCode == "GA6771" | ProducerCode == "TX6767") %>%
+  filter(endorsementDescription == "Remove Recurring Credit Card") %>% 
+  filter(count > 15)
 
 
 
+# dev.new()
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+# Producer with highest count by far was The Zebra 1988 in terms of removing recurring credit cards
 
-# Correlation Plot
-## sjPlot could be useful for vis ML models
+df6 <- df %>%
+  group_by(EndorseEffDate,CancelDate,ProducerName,endorsementDescription) %>%
+  filter(ProducerName == "THE ZEBRA") %>%
+  filter(endorsementDescription == "Remove Recurring Credit Card") %>%
+  summarise(count = n()) %>%
+  filter(count >= 1) 
 
-# df1[] <- lapply(df1, as.integer)
-# sjp.corr(df1)
-# plot_model(df1)
-# df3 <- select(df, endorsementDescription, cancelledReason, DaysToCancelAferEndorsed, PremiumChange)
-# df3 <- group_by(df3,endorsementDescription) %>%
-#   summarise(count = n())
-# Transform change in premium and days to cancel after endo into exp 
-# Transform the categorical data into factors
-# Check email for links
+
+# Plot for Zebra's count of removals of cc & discount/// "Remove discount" might be important after thinking about it
+# So I may instead focus on cc or track a combination of price discounts
+# Next step would be focusing on individual producers comparing it back to this
+# Easiest way would be to add ProducerCode into the data and then filter based on that
+
+plt <- ggplot(df6, aes(x = EndorseEffDate, y = count), position_dodge(.8)) + 
+  
+  geom_point(aes(color = endorsementDescription, fill = endorsementDescription)) +
+  
+  scale_y_continuous(breaks = seq(from = 0, to = 13, by = 1)) +
+  
+  facet_grid(endorsementDescription~.) +
+  
+  theme(
+        legend.position = "top")
+
+plt
+
+# A density plot could help understand when high amounts of 
+ggdensity(df6, x = "EndorseEffDate", add = "mean", color = "endorsementDescription", 
+          fill = "endorsementDescription", 
+          rug = TRUE)
+          # palette = c("blue", "red"))
+
+# Adds some interactivity to the plot for dates
+
+ggplotly(p = plt)
+
+# gather maybe useful
+
+# Find an effective way of using gather to plot time series data for now whats above is sufficient
+
+# Time Series Data plotted could show when these discount removals occurred 
+
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+# Will group the most frequent occurrences of EFTs removals by producer
+# Since we now know the majority is occurring within 11 days 
+
+df7 <- df %>%
+  group_by(ProducerName,endorsementDescription) %>%
+  summarise(count = n()) %>%
+  # filter(count > 100) %>%
+  filter(endorsementDescription == "Delete Recurring EFT") %>%
+  arrange(desc(ProducerName))
+
+# Not sure why mutate isn't working properly so instead doing it this way is quite simple and works
+
+df7$Total <- sum(df7$count)
+df7$TotalP <- (df7$count/df7$Total)*100
+
+df7 <- df7 %>% 
+  select(ProducerName,endorsementDescription,count,TotalP) %>% 
+  filter(TotalP > 1)
+
+colourCount2 = length(unique(df7$ProducerName))
+getPalette2 = colorRampPalette(brewer.pal(12, "Set3"))
+
+
+ggplot(df7, aes(x = "", y = TotalP, fill = ProducerName)) +
+  
+  geom_bar(stat = "identity", color = "black", width = 1) + 
+  
+  coord_polar("y", start = 0) +
+  
+  theme_void() +
+  
+  scale_fill_manual(values = getPalette2(colourCount2)) +
+  
+  guides(fill=guide_legend(ncol=1)) +
+  
+  labs(title = "EFT Removals Greater Than 1%")
+
+
+ggplot(df7) + 
+  
+  geom_bar(aes(x = ProducerName, y = count, fill = ProducerName), 
+           position = position_stack(),stat = "identity") +
+  
+  theme(legend.position = "top",
+        panel.background = element_rect(fill = "transparent"),
+        axis.text.x = element_text(angle = 90)) +
+  
+  labs(title = "Removal Count Of Recurring Credit Cards") +
+  
+  scale_fill_manual(values = getPalette2(colourCount2))
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+
+# Highest Counts of Deleting Recurring EFT
+# Velox Ins 368, The Dale Agency 449. Insurance Plus 322, Acceptance Insurance 357
+
+# First lets look into Dale Agency
+# Only 2 producers with Dale, the GA producer has done 418 eft removals while the SC pro has done 31
+# dev.new()
+
+df8 <- df %>% 
+  group_by(ProducerName,ProducerCode, endorsementDescription,DaysToCancelAferEndorsed) %>%
+  summarise(count = n()) %>%
+  filter(ProducerName == "THE DALE AGENCY") %>%
+  filter(endorsementDescription == "Delete Recurring EFT") %>% 
+  filter(count >= 10)
+
+df8$DaysToCancelAferEndorsed <- as.factor(df8$DaysToCancelAferEndorsed)
+
+ggplot(df8) +
+  
+  geom_bar(aes(x = ProducerCode, y = count, fill = DaysToCancelAferEndorsed), stat = "identity", 
+           position = position_stack()) +
+  
+  theme(legend.position = "top",
+        panel.background = element_rect(fill = "transparent")) +
+  
+  labs( title = "The Dale Agency",
+        x = "Producer Codes",
+        y = "Count of EFT removals")
+
+# Same situation as before, where the system is one processing the removal, however there was at least one
+# instance where it was an agent but that was only for a count of 7
+df8 <- df %>% 
+  group_by(ProducerName,ProducerCode, endorsementDescription,
+           DaysToCancelAferEndorsed, EndorsedBy) %>%
+  summarise(count = n()) %>%
+  filter(ProducerName == "THE DALE AGENCY") %>%
+  filter(endorsementDescription == "Delete Recurring EFT") %>% 
+  filter(count >= 5)
+
+df8$DaysToCancelAferEndorsed <- as.factor(df8$DaysToCancelAferEndorsed)
+#--------------------------------------------------------------------------------------------
+# dev.new()
+#--------------------------------------------------------------------------------------------
+
+df9 <- df %>% 
+  group_by(endorsementDescription) %>% 
+  summarise(count = n())
+
+df9$Total <- sum(df9$count)
+df9$TotalP <- (df9$count/df9$Total)*100
+
+# Most issued endorsements types
+
+df9 <- df9 %>% 
+  select(endorsementDescription, TotalP) %>% 
+  filter(TotalP >= 1)
+
+colourCount4 = length(unique(df9$endorsementDescription))
+getPalette4 = colorRampPalette(brewer.pal(12, "Set3"))
+
+ggplot(df9, aes(x = "", y = TotalP, fill = endorsementDescription)) +
+  
+  geom_bar(stat = "identity", color = "black", width = 1) + 
+  
+  coord_polar("y", start = 0) +
+  
+  theme_void() +
+  
+  scale_fill_manual(values = getPalette4(colourCount4)) +
+  
+  guides(fill=guide_legend(ncol=1)) +
+  
+  labs(title = "Types of Endorsements")
+
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+
+# Lets take a look at which producers are applying the most recurring payments
+
+df10 <- df %>% 
+  group_by(ProducerName,endorsementDescription) %>% 
+  summarise(count = n()) %>% 
+  filter(endorsementDescription == "Add Recurring Payment") %>% 
+  filter(count >= 40)
+
+
+colourCount3 = length(unique(df10$ProducerName))
+getPalette3 = colorRampPalette(brewer.pal(12, "Set3"))
+  
+ggplot(df10) +
+  
+  geom_bar(aes(x = ProducerName, y = count, fill = ProducerName), stat = "identity", 
+           position = position_stack()) +
+  
+  theme(legend.position = "top",
+        panel.background = element_rect(fill = "transparent"),
+        axis.text.x = element_text(angle = 90)) +
+  
+  labs( title = "Producers Applying The Most Recurring Payments",
+        x = "Producer Codes",
+        y = "Count of Recurring Payments") +
+  
+  scale_fill_manual(values = getPalette3(colourCount3))
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+
+df11 <- df %>% 
+  group_by(ProducerName,ProducerCode,endorsementDescription,EndorsedBy,DaysToCancelAferEndorsed) %>% 
+  summarise(count = n()) %>% 
+  filter(ProducerName == "VELOX INSURANCE") %>% 
+  filter(count >= 5)
+
+
+# Lets take a look at the percentage of cc removals and eft removals occurring in the first 30 days and those beyond 30 days
+# Remove the filter to show the huge amount of endos for cc
+
+df11 <- df %>% 
+  group_by(endorsementDescription,DaysEffectiveToEndorsement) %>% 
+  filter(endorsementDescription == "Delete Recurring EFT" | endorsementDescription == "Remove Recurring Credit Card") %>% 
+  summarise(count = n())
+  
+df11$Total <- sum(df11$count)
+df11$TotalP <- (df11$count/df11$Total)*100
+
+
+ggplot(df11, aes(x = DaysEffectiveToEndorsement, y = count, fill = endorsementDescription)) +
+  
+  geom_histogram(stat = "identity", bins = 125) +
+  
+  guides(fill=guide_legend(ncol=1)) +
+  
+  facet_grid(endorsementDescription~.) +
+  
+  scale_x_continuous(limits = c(0,175) ,breaks = seq(from = 0, to = 175, by = 5)) +
+  
+  labs(title = "Recurring CC & EFT Removal Distribution")
+
+# Density Plot showing df11 distribution with no filters or scale constraints 
+
+ggplot(df11, aes(x = DaysEffectiveToEndorsement, fill = endorsementDescription)) +
+  
+  geom_density(alpha = .5) +
+  
+  theme_bw()
+
+# Lets see the distribution of all endorsements over days effective to endorsements
+# dev.new()
+
+df12 <- df %>% 
+  group_by(endorsementDescription,DaysEffectiveToEndorsement) %>% 
+  summarise(count = n()) %>% 
+  filter(endorsementDescription == "Add Discount" | endorsementDescription == "Add Recurring Payment" | endorsementDescription == "Change Discount" |
+           endorsementDescription == "Delete Recurring EFT"  | endorsementDescription == "Remove Discount" | endorsementDescription == "Remove Recurring Credit Card")
+
+ggplot(df12, aes(x = DaysEffectiveToEndorsement, fill = endorsementDescription)) +
+  
+  geom_density(alpha = .5) +
+  
+  theme(legend.position = "top") +
+  
+  guides(fill = guide_legend(nrow=2))
+  
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------
