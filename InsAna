@@ -86,7 +86,7 @@ df3 <- df %>%
   arrange(desc(ProducerName))
 
 df3$Total <- sum(df3$count)
-df3$TotalP <- (df3$count/df3$Total)*100
+df3$TotalP <- round((df3$count/df3$Total)*100,2)
 
 
 colourCount = length(unique(df3$ProducerName))
@@ -112,6 +112,20 @@ ggplot(df3, aes(x = "", y = TotalP, fill = ProducerName)) +
   guides(fill=guide_legend(ncol=1)) +
   
   labs(title = "CC Removals")
+  
+# plotly is really useful, try to use it more often also when making
+# apps use plotly for its interactivity 
+  
+  plot_ly(df3, labels = ~ProducerName, values = ~TotalP, type = 'pie',textposition = 'outside',textinfo = 'label+percent') %>%
+  layout(title = 'CC Removals',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+
+
+myPal = brewer.pal(9,"Set1")
+pie(df3$TotalP, labels = df3$TotalP, col = myPal) +
+  legend(x=.9, y=.9, legend = df3$ProducerName, fill = myPal, xjust = -.1, cex = .7)
 
 
 ggplot(df3) + 
@@ -127,6 +141,9 @@ ggplot(df3) +
   scale_fill_manual(values = getPalette(colourCount)) 
   
 #--------------------------------------------------------------------------------------------
+# Few producer might have more Premium Change impact but the policies they handle would be less
+# Meaning that even if the amount of policies they've done is lower the impact from the change in premium could be high
+# So filter data based on the change in premium and not count when looking into premium change
 #--------------------------------------------------------------------------------------------
 
 # Lets breakdown which states have the highest amount of cc removals for zebra
