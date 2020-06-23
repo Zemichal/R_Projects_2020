@@ -506,3 +506,36 @@ ggplot(df12, aes(x = DaysEffectiveToEndorsement, fill = endorsementDescription))
 #--------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------
 #--------------------------------------------------------------------------------------------
+# Few producer might have more Premium Change impact but the policies they handle would be less
+# Meaning that even if the amount of policies they've done is lower the impact from the change in premium could be high
+# So filter data based on the change in premium and not count when looking into premium change
+
+
+# Lets look into the relationship between the change in premium as it relates to the endorsements and days to cancel
+
+
+df13 <- df %>% 
+  select(ProducerName, PremiumChange, endorsementDescription, DaysEffectiveToEndorsement, DaysToCancelAferEndorsed) %>% 
+  filter(PremiumChange > 0) %>% 
+  filter(endorsementDescription == "Remove Recurring Credit Card" |
+           endorsementDescription == "Delete Recurring EFT") %>% 
+  filter(DaysToCancelAferEndorsed < 31) %>% 
+  arrange(desc(PremiumChange))
+
+df13$DaysToCancelAferEndorsed <- as.factor(df13$DaysToCancelAferEndorsed)
+
+ggplot(df13) +
+  
+  geom_point(aes(x = DaysEffectiveToEndorsement, y = PremiumChange)) +
+  
+  scale_x_continuous(limits = c(0,175) ,breaks = seq(from = 0, to = 200, by = 5)) +
+  
+  scale_fill_manual(values = color) +
+  
+  facet_grid(endorsementDescription~.)
+
+ggplot(df13, aes(x = PremiumChange, fill = endorsementDescription)) +
+  
+  geom_density(alpha = .5) +
+  
+  theme_bw()
