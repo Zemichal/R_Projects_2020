@@ -1,0 +1,124 @@
+library(tidyverse)
+library(caret)
+
+
+#---------------------------------------------------------------
+#---------------------------------------------------------------
+#---------------------------------------------------------------
+# Machine Learning Practice
+
+data("marketing", package = "datarium")
+
+sample_n(marketing,3)
+
+
+# Here we split the data into training and test sets
+
+set.seed(123)
+
+training.sample <- marketing$sales %>% 
+  createDataPartition(p = .8, list = F)
+
+# What does adding - for the test.data do?
+
+train.data <- marketing[training.sample,]
+test.data <- marketing[-training.sample,]
+
+# lm is used to compute linear regression model
+### Simple Linear Regression ####
+model <- lm(sales~., data = train.data)
+
+
+summary(model)
+
+# Predictions
+
+predictions <- model %>% predict(test.data)
+
+# Model performance of predictions using RMSE (Lower the better) & R2 (Higher the better)
+
+RMSE(predictions, test.data$sales)
+R2(predictions, test.data$sales)
+
+
+model1 <- lm(sales~youtube, data = train.data)
+
+summary(model1)$coef
+
+newdata <- data.frame(youtube = c(0,1000))
+
+model1 %>% predict(newdata)
+#---------------------------------------------------------------
+#---------------------------------------------------------------
+#---------------------------------------------------------------
+# Cluster Analysis Practice
+# rm(list = ls())
+
+
+library(cluster)
+library(factoextra)
+
+
+set.seed(1234)
+
+# Generate 500 objects,  divided into 2 clusters
+
+df <- rbind(cbind(rnorm(200,0,8), rnorm(200,0,8)),
+            cbind(rnorm(300,0,8), rnorm(300,0,8)))
+
+colnames(df) <- c("x","y")
+rownames(df) <- paste0("S", 1:nrow(df))
+
+
+fviz_nbclust(df, clara, method = "silhouette")
+
+# States the best # of clusters would be 3 now we have to classify the observations in those 3 clusters
+# The example in the book follows 2 clusters for learning sake I will do 2 clusters
+
+
+clara.res <- clara(x = df, k = 2, samples = 50, pamLike = T)
+
+print(clara.res)
+clara.res$medoids
+
+# Vis Clusters
+
+fviz_cluster(clara.res, palette = c("red", "blue"), ellipse.type = "t", 
+             geom = "point", pointsize = 1, ggtheme = theme_classic())
+#---------------------------------------------------------------
+df <- read_excel("pd1.xlsx", sheet = "Sheet1")
+df <- data.frame(df)
+
+df1 <- df %>%
+  select(DaysEffectiveToEndorsement, DaysToCancelAferEndorsed)
+
+df1 <- df1 %>%
+  filter(DaysEffectiveToEndorsement < 31) %>%
+  filter(DaysEffectiveToEndorsement > 0) %>% 
+  filter(DaysToCancelAferEndorsed < 15)
+
+scaledf <- scale(df1)
+scaledf
+
+# K-means Clustering
+# Better but still not useful I need to look into the best way to prepare this data for clustering!!!!!
+fviz_nbclust(df1, kmeans, method = "silhouette")
+
+fitK <- kmeans(scaledf,2)
+
+fitK
+
+plot(df1, col = fitK$cluster)
+
+# Not the proper way come back to when I understand what I did wrong
+
+# fviz_nbclust(df1, clara, method = "silhouette")
+# 
+# cR <- clara(x = df1, k = 2, samples = 500, pamLike = T)
+# 
+# fviz_cluster(cR, data = df1,palette = c("red", "blue"), ellipse.type = "t", 
+#              geom = "point", pointsize = 1, ggtheme = theme_classic())
+# 
+# kR <- kmeans(df1,3,nstart = 25)
+# 
+# fviz_cluster(kR, data = df1, palette = c("red", "blue", "yellow"))
